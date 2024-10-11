@@ -16,69 +16,122 @@ type Command struct {
 	Callback    func([]string) error
 }
 
-var Menus []map[string]Command
+type Menu struct {
+	Prefix   string
+	Commands map[string]Command
+}
 
-func menuInit() {
-	Menus = []map[string]Command{
-		{
-			"help": {
-				Name:        "Help",
-				Description: "Shows menu options",
-				Callback:    helpCommand,
+var Menus []Menu
+
+func menuInit() { // make the help and back commands global commands (not a specific menu option) that takes a menu to back to and help takes the current menu
+	Menus = []Menu{
+		{Prefix: "main > ",
+			Commands: map[string]Command{
+				"help": {
+					Name:        "Help",
+					Description: "Shows menu options",
+					Callback:    helpCommand,
+				},
+				"exit": {
+					Name:        "Exit",
+					Description: "Exits the program",
+					Callback:    exitCommand,
+				},
+				"login": {
+					Name:        "Login",
+					Description: "login user",
+					Callback:    loginCommand,
+				},
+				"vault": {
+					Name:        "Vault",
+					Description: "enter the vault",
+					Callback:    enterVault,
+				},
 			},
-			"exit": {
-				Name:        "Exit",
-				Description: "Exits the program",
-				Callback:    exitCommand,
-			},
-			"login": {
-				Name:        "Login",
-				Description: "login user",
-				Callback:    loginCommand,
+		},
+		{Prefix: "vault > ",
+			Commands: map[string]Command{
+				"help": {
+					Name:        "Help",
+					Description: "Shows menu options",
+					Callback:    helpCommand,
+				},
+				"back": {
+					Name:        "Back",
+					Description: "Backs to main menu",
+					Callback:    backCommand,
+				},
+				"create": {
+					Name:        "Create",
+					Description: "Create a password",
+					Callback:    createPassword,
+				},
+				"update": {
+					Name:        "Update",
+					Description: "Update a password",
+					Callback:    updatePasswordCommand,
+				},
+				"delete": {
+					Name:        "Delete",
+					Description: "Delete a password",
+					Callback:    deletePasswordCommand,
+				},
 			},
 		},
 	}
-
 }
 
 const (
 	mainMenu int = iota
-	secondMenu
+	vaultMenu
 )
 
 var currentMenu = mainMenu
 
 func main() {
 	menuInit()
+	CLILoop(mainMenu)
+}
+
+func CLILoop(menuOption int) {
+	// set the menu
+	currentMenu = menuOption
+	menu := Menus[currentMenu]
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Print("> ")
+		// write the prefix
+		fmt.Print(menu.Prefix)
+		// grab the input
 		data, err := reader.ReadString('\n')
-		cleanData := strings.TrimSpace(data)
 		if err != nil {
 			fmt.Println("error reading string: %w", err)
 			continue
 		}
-		menu := Menus[currentMenu]
-		command, exists := menu[cleanData]
+
+		// clean it
+		cleanData := strings.TrimSpace(data)
+		splitData := strings.Split(cleanData, " ")
+
+		// grab the command
+		command, exists := menu.Commands[cleanData]
 		if !exists {
 			fmt.Println("option does not exist")
+			continue
 		}
 
-		splitData := strings.Split(cleanData, " ")
+		// run the function
 		err = command.Callback(splitData)
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue
 		}
 	}
-
 }
 
 func helpCommand(arguments []string) error {
 	i := 1
-	for key, value := range Menus[currentMenu] {
+	for key, value := range Menus[currentMenu].Commands {
 		fmt.Printf("%d: %s (%s)\n", i, key, value.Description)
 		i++
 	}
@@ -138,5 +191,70 @@ func loginCommand(arguments []string) error {
 		fmt.Println(data)
 	}
 
+	return nil
+}
+
+func createPassword(arguments []string) error {
+	// take the input of password then the application
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("password > ")
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("erro reading input: %w", err)
+	}
+
+	trimedPassword := strings.TrimSpace(input)
+
+	fmt.Print("application > ")
+	input, err = reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("erro reading input: %w", err)
+	}
+
+	trimedApplication := strings.TrimSpace(input)
+
+	// create json string
+	jsonString := fmt.Sprintf(`{
+			"password": "%s",
+			"application": "%s"
+		}`,
+		trimedPassword,
+		trimedApplication,
+	)
+
+	// Send the POST request
+	ioReader := strings.NewReader(jsonString)
+	res, err := http.Post("http://localhost:8080/api/passwords", "application/json", ioReader)
+	if err != nil {
+		return fmt.Errorf("post request error: %w", err)
+	}
+	defer res.Body.Close()
+
+	// read the response
+	fmt.Println(res)
+
+	return nil
+}
+
+func updatePasswordCommand(args []string) error {
+	fmt.Println("update password")
+	return nil
+}
+
+func deletePasswordCommand(args []string) error {
+	fmt.Println("delete password")
+	return nil
+}
+
+func enterVault(args []string) error {
+	fmt.Println("enter vault menu")
+	CLILoop(vaultMenu)
+	return nil
+}
+
+func backCommand(args []string) error {
+	fmt.Println("back to main menu")
+	CLILoop(mainMenu)
 	return nil
 }
