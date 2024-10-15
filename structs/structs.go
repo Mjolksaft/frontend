@@ -32,12 +32,6 @@ type Menu struct {
 	Commands map[string]Command
 }
 
-type UserSession struct {
-	userId   string
-	username string
-	cookie   string
-}
-
 // MenuSwitcher interface defines the methods for switching and getting menus
 type MenuSwitcher interface {
 	SwitchMenu(int)
