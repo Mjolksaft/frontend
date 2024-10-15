@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"frontend/structs"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"strings"
 )
+
+var client *http.Client
 
 func HelpCommand(arguments []string, m structs.MenuSwitcher) error {
 	i := 1
@@ -30,101 +34,80 @@ func ExitCommand(arguments []string, m structs.MenuSwitcher) error {
 func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
 	fmt.Println("Login")
 	reader := bufio.NewReader(os.Stdin)
+
+	// Get username input
 	fmt.Print("username >")
 	username, err := reader.ReadString('\n')
-
 	if err != nil {
 		return fmt.Errorf("error reading username: %w", err)
 	}
+
+	// Get password input
 	fmt.Print("password >")
 	password, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading username: %w", err)
+		return fmt.Errorf("error reading password: %w", err)
 	}
+
+	// Trim spaces from inputs
 	username = strings.TrimSpace(username)
 	password = strings.TrimSpace(password)
 
+	// Create JSON payload for login
 	jsonString := fmt.Sprintf(`{"password": "%s", "username": "%s"}`, password, username)
-
 	ioReader := strings.NewReader(jsonString)
 
-	// Make the request
-	req, err := http.NewRequest("POST", "http://localhost:8080/api/login", ioReader)
+	// Define the login URL
+	loginURL := "http://localhost:8080/api/login"
+
+	// Create the HTTP request
+	req, err := http.NewRequest("POST", loginURL, ioReader)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
 
-	client := &http.Client{}
-	res, err := client.Do(req)
-
+	// Create a cookie jar to store cookies
+	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return fmt.Errorf("error doing request %w", err)
+		return fmt.Errorf("error creating cookie jar: %w", err)
 	}
 
-	if res.StatusCode == 200 { // if the request is not good send error
+	// Create an HTTP client with the cookie jar
+	client = &http.Client{
+		Jar: jar,
+	}
+
+	// Make the request
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error making request: %w", err)
+	}
+	defer res.Body.Close() // Ensure the response body is closed
+
+	// Parse the URL to retrieve cookies
+	u, err := url.Parse(loginURL)
+	if err != nil {
+		return fmt.Errorf("error parsing URL: %w", err)
+	}
+
+	// Print cookies stored in the cookie jar after login
+	cookies := jar.Cookies(u)
+	fmt.Println("Cookies after login:", cookies)
+
+	// Check if the login was successful
+	if res.StatusCode == 200 {
 		decoder := json.NewDecoder(res.Body)
 
+		// Decode the response body into the User struct
 		var data structs.User
 		if err := decoder.Decode(&data); err != nil {
-			return fmt.Errorf("error decoding data: %w", err)
+			return fmt.Errorf("error decoding response: %w", err)
 		}
 
-		fmt.Println(data)
+	} else {
+		return fmt.Errorf("login failed with status code: %d", res.StatusCode)
 	}
 
-	return nil
-}
-
-func CreatePassword(arguments []string, m structs.MenuSwitcher) error {
-	// take the input of password then the application
-	reader := bufio.NewReader(os.Stdin)
-
-	fmt.Print("password > ")
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("erro reading input: %w", err)
-	}
-
-	trimedPassword := strings.TrimSpace(input)
-
-	fmt.Print("application > ")
-	input, err = reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("erro reading input: %w", err)
-	}
-
-	trimedApplication := strings.TrimSpace(input)
-
-	// create json string
-	jsonString := fmt.Sprintf(`{
-			"password": "%s",
-			"application": "%s"
-		}`,
-		trimedPassword,
-		trimedApplication,
-	)
-
-	// Send the POST request
-	ioReader := strings.NewReader(jsonString)
-	res, err := http.Post("http://localhost:8080/api/passwords", "application/json", ioReader)
-	if err != nil {
-		return fmt.Errorf("post request error: %w", err)
-	}
-	defer res.Body.Close()
-
-	// read the response
-	fmt.Println(res)
-
-	return nil
-}
-
-func UpdatePasswordCommand(args []string, m structs.MenuSwitcher) error {
-	fmt.Println("update password")
-	return nil
-}
-
-func DeletePasswordCommand(args []string, m structs.MenuSwitcher) error {
-	fmt.Println("delete password")
 	return nil
 }
 
@@ -137,5 +120,17 @@ func EnterVault(args []string, m structs.MenuSwitcher) error {
 func BackCommand(args []string, m structs.MenuSwitcher) error {
 	fmt.Println("back to main menu")
 	m.SwitchMenu(0)
+	return nil
+}
+
+func TestCommand(args []string, m structs.MenuSwitcher) error {
+	fmt.Println("Test the api")
+
+	_, err := client.Get("http://localhost:8080/api/users")
+	if err != nil {
+		return fmt.Errorf("error with request: %w", err)
+	}
+
+	// decode res
 	return nil
 }

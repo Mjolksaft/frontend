@@ -86,20 +86,10 @@ func MenuInit(m *MenuManager) { // make the help and back commands global comman
 					Description: "Backs to main menu",
 					Callback:    commands.BackCommand,
 				},
-				"create": {
+				"test": {
 					Name:        "Create",
 					Description: "Create a password",
-					Callback:    commands.CreatePassword,
-				},
-				"update": {
-					Name:        "Update",
-					Description: "Update a password",
-					Callback:    commands.UpdatePasswordCommand,
-				},
-				"delete": {
-					Name:        "Delete",
-					Description: "Delete a password",
-					Callback:    commands.DeletePasswordCommand,
+					Callback:    commands.TestCommand,
 				},
 			},
 		},
