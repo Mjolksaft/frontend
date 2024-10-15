@@ -20,3 +20,20 @@ type User struct {
 	Username       string    `json:"username"`
 	IsAdmin        bool      `json:"is_admin"`
 }
+
+type Command struct {
+	Name        string
+	Description string
+	Callback    func([]string, MenuSwitcher) error
+}
+
+type Menu struct {
+	Prefix   string
+	Commands map[string]Command
+}
+
+// MenuSwitcher interface defines the methods for switching and getting menus
+type MenuSwitcher interface {
+	SwitchMenu(int)
+	GetCurrentMenu() Menu
+}
