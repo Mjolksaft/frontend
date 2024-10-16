@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"frontend/internal/encryption"
 	"frontend/structs"
 	"net/http"
 	"net/http/cookiejar"
@@ -33,28 +34,14 @@ func ExitCommand(arguments []string, m structs.MenuSwitcher) error {
 
 func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
 	fmt.Println("Login")
-	reader := bufio.NewReader(os.Stdin)
 
-	// Get username input
-	fmt.Print("username >")
-	username, err := reader.ReadString('\n')
+	input, err := getInput([]string{"username", "password"})
 	if err != nil {
-		return fmt.Errorf("error reading username: %w", err)
+		return fmt.Errorf("error recieving input: %w", err)
 	}
-
-	// Get password input
-	fmt.Print("password >")
-	password, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading password: %w", err)
-	}
-
-	// Trim spaces from inputs
-	username = strings.TrimSpace(username)
-	password = strings.TrimSpace(password)
 
 	// Create JSON payload for login
-	jsonString := fmt.Sprintf(`{"password": "%s", "username": "%s"}`, password, username)
+	jsonString := fmt.Sprintf(`{"username": "%s", "password": "%s"}`, input[0], input[1])
 	ioReader := strings.NewReader(jsonString)
 
 	// Define the login URL
@@ -123,6 +110,39 @@ func BackCommand(args []string, m structs.MenuSwitcher) error {
 	return nil
 }
 
+func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
+	// get the input
+	input, err := getInput([]string{"masterPassword", "password", "application"})
+	if err != nil {
+		return fmt.Errorf("error getting input: %w", err)
+	}
+	// encrypt the password
+	encrypted, err := encryption.EncryptPassword(input[0], input[1])
+	if err != nil {
+		return fmt.Errorf("error encrypting: %w", err)
+	}
+
+	// create the request
+	reader := strings.NewReader(encrypted)
+	res, err := http.Post("http://localhost:8080/api/passwords", "text/plain", reader)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+
+	// check the results
+	decoder := json.NewDecoder(res.Body)
+	var data string // change when created api
+	if err := decoder.Decode(&data); err != nil {
+		return fmt.Errorf("failed decode body: %w", err)
+	}
+
+	// print output
+	fmt.Println(data)
+
+	// return
+	return nil
+}
+
 func TestCommand(args []string, m structs.MenuSwitcher) error {
 	fmt.Println("Test the api")
 
@@ -133,4 +153,44 @@ func TestCommand(args []string, m structs.MenuSwitcher) error {
 
 	// decode res
 	return nil
+}
+
+func TestEncryption(args []string, m structs.MenuSwitcher) error {
+	input, err := getInput([]string{"master password", "password"})
+	if err != nil {
+		return fmt.Errorf("error recieving input: %w", err)
+	}
+
+	encryptedPassword, err := encryption.EncryptPassword(input[0], input[1])
+	if err != nil {
+		return fmt.Errorf("error encrypting password: %w", err)
+	}
+
+	password, err := encryption.DecryptPassword(input[0], encryptedPassword)
+	if err != nil {
+		return fmt.Errorf("error decrypting password: %w", err)
+	}
+
+	fmt.Printf("Password: %s\n", password)
+	fmt.Printf("encrypted: %s\n", encryptedPassword)
+
+	return nil
+
+}
+
+func getInput(queries []string) ([]string, error) {
+	length := len(queries)
+	var input = make([]string, length)
+
+	reader := bufio.NewReader(os.Stdin)
+	for i, query := range queries {
+		fmt.Printf("%s > ", query)
+		value, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("error reading password: %w", err)
+		}
+
+		input[i] = strings.TrimSpace(value)
+	}
+	return input, nil
 }

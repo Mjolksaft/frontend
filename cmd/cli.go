@@ -72,6 +72,11 @@ func MenuInit(m *MenuManager) { // make the help and back commands global comman
 					Description: "enter the vault",
 					Callback:    commands.EnterVault,
 				},
+				"encrypt": {
+					Name:        "Encrypt",
+					Description: "encrypt password",
+					Callback:    commands.TestEncryption,
+				},
 			},
 		},
 		{Prefix: "vault > ",
