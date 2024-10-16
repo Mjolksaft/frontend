@@ -110,6 +110,39 @@ func BackCommand(args []string, m structs.MenuSwitcher) error {
 	return nil
 }
 
+func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
+	// get the input
+	input, err := getInput([]string{"masterPassword", "password", "application"})
+	if err != nil {
+		return fmt.Errorf("error getting input: %w", err)
+	}
+	// encrypt the password
+	encrypted, err := encryption.EncryptPassword(input[0], input[1])
+	if err != nil {
+		return fmt.Errorf("error encrypting: %w", err)
+	}
+
+	// create the request
+	reader := strings.NewReader(encrypted)
+	res, err := http.Post("http://localhost:8080/api/passwords", "text/plain", reader)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+
+	// check the results
+	decoder := json.NewDecoder(res.Body)
+	var data string // change when created api
+	if err := decoder.Decode(&data); err != nil {
+		return fmt.Errorf("failed decode body: %w", err)
+	}
+
+	// print output
+	fmt.Println(data)
+
+	// return
+	return nil
+}
+
 func TestCommand(args []string, m structs.MenuSwitcher) error {
 	fmt.Println("Test the api")
 
