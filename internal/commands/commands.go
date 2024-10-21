@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/atotto/clipboard"
 )
 
 var client *http.Client
@@ -111,42 +113,43 @@ func BackCommand(args []string, m structs.MenuSwitcher) error {
 }
 
 func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
+	// check if client exists to see if the user is logged in or not
+
 	// get the input
 	input, err := getInput([]string{"masterPassword", "password", "application"})
 	if err != nil {
 		return fmt.Errorf("error getting input: %w", err)
 	}
+
 	// encrypt the password
 	encrypted, err := encryption.EncryptPassword(input[0], input[1])
 	if err != nil {
 		return fmt.Errorf("error encrypting: %w", err)
 	}
 
+	//make the json string
+	jsonString := fmt.Sprintf(`{"password": "%s", "application": "%s"}`, encrypted, input[2])
+	reader := strings.NewReader(jsonString)
+
 	// create the request
-	reader := strings.NewReader(encrypted)
-	res, err := http.Post("http://localhost:8080/api/passwords", "text/plain", reader)
+	res, err := client.Post("http://localhost:8080/api/passwords", "text/plain", reader)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
 
 	// check the results
-	decoder := json.NewDecoder(res.Body)
-	var data string // change when created api
-	if err := decoder.Decode(&data); err != nil {
-		return fmt.Errorf("failed decode body: %w", err)
+	if res.StatusCode == 201 {
+		fmt.Printf("%s password added", input[2])
+		return nil
 	}
 
-	// print output
-	fmt.Println(data)
-
-	// return
 	return nil
 }
 
 func TestCommand(args []string, m structs.MenuSwitcher) error {
 	fmt.Println("Test the api")
 
-	_, err := client.Get("http://localhost:8080/api/users")
+	_, err := client.Get("http://localhost:8080/api/users/123123123")
 	if err != nil {
 		return fmt.Errorf("error with request: %w", err)
 	}
@@ -176,6 +179,75 @@ func TestEncryption(args []string, m structs.MenuSwitcher) error {
 
 	return nil
 
+}
+
+func GetPasswordCommand(args []string, m structs.MenuSwitcher) error {
+	type passwordStruct struct {
+		Application    string `json:"application"`
+		HashedPassword string `json:"hashedPassword"`
+	}
+
+	// query the application name
+	input, err := getInput([]string{"master password > ", "application name > "})
+	if err != nil {
+		return fmt.Errorf("error getting input: %w", err)
+	}
+
+	// make the request
+	res, err := client.Get(fmt.Sprintf("http://localhost:8080/api/passwords?application_name=%s", input[1]))
+	if err != nil {
+		return fmt.Errorf("error with request: %w", err)
+	}
+
+	// decode the password
+	decoder := json.NewDecoder(res.Body)
+	var body passwordStruct
+	if err := decoder.Decode(&body); err != nil {
+		return fmt.Errorf("error decoding body: %w", err)
+	}
+
+	// decrypt the password
+	password, err := encryption.DecryptPassword(input[0], body.HashedPassword)
+	if err != nil {
+		return fmt.Errorf("error decrypting password: %w", err)
+	}
+
+	// add to clip board
+	err = clipboard.WriteAll(password)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Text copied to clipboard!")
+
+	return nil
+}
+
+func GetPasswordsCommand(args []string, m structs.MenuSwitcher) error {
+	type passwordStruct struct {
+		ApplicationName string `json:"applicationName"`
+		HashedPassword  string `json:"hashedPassword"`
+	}
+
+	// make the request
+	res, err := client.Get("http://localhost:8080/api/passwords")
+	if err != nil {
+		return fmt.Errorf("error with request: %w", err)
+	}
+
+	// decode the password
+	decoder := json.NewDecoder(res.Body)
+	var body []passwordStruct
+	if err := decoder.Decode(&body); err != nil {
+		return fmt.Errorf("error decoding body: %w", err)
+	}
+
+	for i, data := range body {
+		fmt.Printf("%d. %s \n", i+1, data.ApplicationName)
+
+	}
+
+	return nil
 }
 
 func getInput(queries []string) ([]string, error) {
