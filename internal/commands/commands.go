@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"frontend/internal/encryption"
+	"frontend/internal/util"
 	"frontend/structs"
 	"net/http"
 	"net/http/cookiejar"
@@ -35,8 +36,6 @@ func ExitCommand(arguments []string, m structs.MenuSwitcher) error {
 }
 
 func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
-	fmt.Println("Login")
-
 	input, err := getInput([]string{"username", "password"})
 	if err != nil {
 		return fmt.Errorf("error recieving input: %w", err)
@@ -116,10 +115,14 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	// check if client exists to see if the user is logged in or not
 
 	// get the input
-	input, err := getInput([]string{"masterPassword", "password", "application"})
+	input, err := getInput([]string{"masterPassword", "password"})
 	if err != nil {
 		return fmt.Errorf("error getting input: %w", err)
 	}
+
+	// wait of screen change to get the application you want
+	windowTitle := util.MonitorWindowChange()
+	encodedAppName := url.QueryEscape(strings.Split(windowTitle, " - ")[0])
 
 	// encrypt the password
 	encrypted, err := encryption.EncryptPassword(input[0], input[1])
@@ -128,7 +131,7 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	}
 
 	//make the json string
-	jsonString := fmt.Sprintf(`{"password": "%s", "application": "%s"}`, encrypted, input[2])
+	jsonString := fmt.Sprintf(`{"password": "%s", "application": "%s"}`, encrypted, encodedAppName)
 	reader := strings.NewReader(jsonString)
 
 	// create the request
@@ -139,69 +142,40 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 
 	// check the results
 	if res.StatusCode == 201 {
-		fmt.Printf("%s password added", input[2])
+		fmt.Printf("%s password added\n", encodedAppName)
 		return nil
 	}
 
 	return nil
 }
 
-func TestCommand(args []string, m structs.MenuSwitcher) error {
-	fmt.Println("Test the api")
-
-	_, err := client.Get("http://localhost:8080/api/users/123123123")
-	if err != nil {
-		return fmt.Errorf("error with request: %w", err)
-	}
-
-	// decode res
-	return nil
-}
-
-func TestEncryption(args []string, m structs.MenuSwitcher) error {
-	input, err := getInput([]string{"master password", "password"})
-	if err != nil {
-		return fmt.Errorf("error recieving input: %w", err)
-	}
-
-	encryptedPassword, err := encryption.EncryptPassword(input[0], input[1])
-	if err != nil {
-		return fmt.Errorf("error encrypting password: %w", err)
-	}
-
-	password, err := encryption.DecryptPassword(input[0], encryptedPassword)
-	if err != nil {
-		return fmt.Errorf("error decrypting password: %w", err)
-	}
-
-	fmt.Printf("Password: %s\n", password)
-	fmt.Printf("encrypted: %s\n", encryptedPassword)
-
-	return nil
-
-}
-
 func GetPasswordCommand(args []string, m structs.MenuSwitcher) error {
-	type passwordStruct struct {
-		Application    string `json:"application"`
-		HashedPassword string `json:"hashedPassword"`
+	type Password struct {
+		HashedPassword  string `json:"HashedPassword"`
+		ApplicationName string `json:"ApplicationName"`
 	}
 
-	// query the application name
-	input, err := getInput([]string{"master password > ", "application name > "})
+	// query the masterpassword for decryption
+	input, err := getInput([]string{"master password"})
 	if err != nil {
 		return fmt.Errorf("error getting input: %w", err)
 	}
 
+	// wait of screen change to get the application you want
+	windowTitle := util.MonitorWindowChange()
+	encodedAppName := url.QueryEscape(strings.Split(windowTitle, " - ")[0])
+
 	// make the request
-	res, err := client.Get(fmt.Sprintf("http://localhost:8080/api/passwords?application_name=%s", input[1]))
+	fullUrl := fmt.Sprintf("http://localhost:8080/api/passwords?application_name=%s", encodedAppName)
+	fmt.Println(fullUrl)
+	res, err := client.Get(fullUrl)
 	if err != nil {
 		return fmt.Errorf("error with request: %w", err)
 	}
 
 	// decode the password
 	decoder := json.NewDecoder(res.Body)
-	var body passwordStruct
+	var body Password
 	if err := decoder.Decode(&body); err != nil {
 		return fmt.Errorf("error decoding body: %w", err)
 	}

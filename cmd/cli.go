@@ -16,9 +16,18 @@ const (
 
 func CLILoop(m *MenuManager) {
 	reader := bufio.NewReader(os.Stdin)
-	for {
 
+	// runs the login command on fail close program
+	command := m.GetCurrentMenu().Commands["login"]
+	err := command.Callback(nil, m)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for {
 		menu := m.GetCurrentMenu()
+
 		// write the prefix
 		fmt.Print(menu.Prefix)
 		// grab the input
@@ -63,19 +72,14 @@ func MenuInit(m *MenuManager) { // make the help and back commands global comman
 					Callback:    commands.ExitCommand,
 				},
 				"login": {
-					Name:        "Login",
-					Description: "login user",
+					Name:        "login",
+					Description: "logs in new user",
 					Callback:    commands.LoginCommand,
 				},
 				"vault": {
 					Name:        "Vault",
 					Description: "enter the vault",
 					Callback:    commands.EnterVault,
-				},
-				"encrypt": {
-					Name:        "Encrypt",
-					Description: "encrypt password",
-					Callback:    commands.TestEncryption,
 				},
 			},
 		},
@@ -90,11 +94,6 @@ func MenuInit(m *MenuManager) { // make the help and back commands global comman
 					Name:        "Back",
 					Description: "Backs to main menu",
 					Callback:    commands.BackCommand,
-				},
-				"test": {
-					Name:        "test",
-					Description: "test api",
-					Callback:    commands.TestCommand,
 				},
 				"create": {
 					Name:        "Create",
