@@ -107,27 +107,33 @@ func BackCommand(args []string, m structs.MenuSwitcher) error {
 
 func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	// get the input
-	input, err := getInput([]string{"masterPassword"})
+	input, err := getInput([]string{"masterPassword", "add already existing password (Y/N)"})
 	if err != nil {
 		return fmt.Errorf("error getting input: %w", err)
 	}
 
-	// check password length
-	var passLen int
+	// add existing password or create a random new one
 	var password string
-	for {
-		passwordList, err := getInput([]string{"password"})
-		if err != nil {
-			return fmt.Errorf("error getting input: %w", err)
-		}
+	if strings.ToLower(input[1]) == "y" {
+		var passLen int
+		for {
+			passwordList, err := getInput([]string{"password"})
+			if err != nil {
+				return fmt.Errorf("error getting input: %w", err)
+			}
 
-		passLen = len(passwordList[0])
-		if passLen > 8 {
-			password = passwordList[0]
-			break
+			passLen = len(passwordList[0])
+			if passLen > 8 {
+				password = passwordList[0]
+				break
+			}
+			fmt.Println("Password must be more than 8 characters long")
 		}
-		fmt.Println("Password must be more than 8 characters long")
+	} else {
+		password = util.GeneratePassword(15, true, true)
 	}
+
+	fmt.Println(password)
 
 	// wait of screen change to get the application you want
 	windowTitle := util.MonitorWindowChange()
