@@ -5,11 +5,10 @@ import (
 )
 
 type Password struct {
-	ID             string    `json:"id"`
-	CreatedAt      time.Time `json:"createAt"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-	HashedPassword string    `json:"hashedPassword"`
-	Application    string    `json:"application"`
+	ID             string `json:"ID"`
+	HashedPassword string `json:"HashedPassword"`
+	Application    string `json:"ApplicationName"`
+	UserID         string `json:"UserID"`
 }
 
 type User struct {

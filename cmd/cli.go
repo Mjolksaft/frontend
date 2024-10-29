@@ -103,12 +103,17 @@ func MenuInit(m *MenuManager) { // make the help and back commands global comman
 				"get": {
 					Name:        "Get",
 					Description: "Get a password by application",
-					Callback:    commands.GetPasswordCommand,
+					Callback:    commands.GetPasswordByApplicationCommand,
 				},
 				"get_all": {
 					Name:        "Get",
 					Description: "Get a password by application",
 					Callback:    commands.GetPasswordsCommand,
+				},
+				"delete": {
+					Name:        "Delete",
+					Description: "Delete by application",
+					Callback:    commands.DeletePasswordCommand,
 				},
 			},
 		},

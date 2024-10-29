@@ -11,6 +11,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/atotto/clipboard"
@@ -36,6 +37,9 @@ func ExitCommand(arguments []string, m structs.MenuSwitcher) error {
 }
 
 func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
+	// check cookies if user is already logged in
+
+	// get input
 	input, err := getInput([]string{"username", "password"})
 	if err != nil {
 		return fmt.Errorf("error recieving input: %w", err)
@@ -72,16 +76,6 @@ func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
 	}
 	defer res.Body.Close() // Ensure the response body is closed
 
-	// Parse the URL to retrieve cookies
-	u, err := url.Parse(loginURL)
-	if err != nil {
-		return fmt.Errorf("error parsing URL: %w", err)
-	}
-
-	// Print cookies stored in the cookie jar after login
-	cookies := jar.Cookies(u)
-	fmt.Println("Cookies after login:", cookies)
-
 	// Check if the login was successful
 	if res.StatusCode == 200 {
 		decoder := json.NewDecoder(res.Body)
@@ -91,7 +85,7 @@ func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
 		if err := decoder.Decode(&data); err != nil {
 			return fmt.Errorf("error decoding response: %w", err)
 		}
-
+		m.SwitchMenu(1)
 	} else {
 		return fmt.Errorf("login failed with status code: %d", res.StatusCode)
 	}
@@ -112,12 +106,27 @@ func BackCommand(args []string, m structs.MenuSwitcher) error {
 }
 
 func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
-	// check if client exists to see if the user is logged in or not
-
 	// get the input
-	input, err := getInput([]string{"masterPassword", "password"})
+	input, err := getInput([]string{"masterPassword"})
 	if err != nil {
 		return fmt.Errorf("error getting input: %w", err)
+	}
+
+	// check password length
+	var passLen int
+	var password string
+	for {
+		passwordList, err := getInput([]string{"password"})
+		if err != nil {
+			return fmt.Errorf("error getting input: %w", err)
+		}
+
+		passLen = len(passwordList[0])
+		if passLen > 8 {
+			password = passwordList[0]
+			break
+		}
+		fmt.Println("Password must be more than 8 characters long")
 	}
 
 	// wait of screen change to get the application you want
@@ -125,7 +134,7 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	encodedAppName := url.QueryEscape(strings.Split(windowTitle, " - ")[0])
 
 	// encrypt the password
-	encrypted, err := encryption.EncryptPassword(input[0], input[1])
+	encrypted, err := encryption.EncryptPassword(input[0], password)
 	if err != nil {
 		return fmt.Errorf("error encrypting: %w", err)
 	}
@@ -149,7 +158,7 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	return nil
 }
 
-func GetPasswordCommand(args []string, m structs.MenuSwitcher) error {
+func GetPasswordByApplicationCommand(args []string, m structs.MenuSwitcher) error {
 	type Password struct {
 		HashedPassword  string `json:"HashedPassword"`
 		ApplicationName string `json:"ApplicationName"`
@@ -192,34 +201,77 @@ func GetPasswordCommand(args []string, m structs.MenuSwitcher) error {
 		return err
 	}
 
-	fmt.Println("Text copied to clipboard!")
+	fmt.Println("Password copied to clipboard!")
 
 	return nil
 }
 
 func GetPasswordsCommand(args []string, m structs.MenuSwitcher) error {
-	type passwordStruct struct {
-		ApplicationName string `json:"applicationName"`
-		HashedPassword  string `json:"hashedPassword"`
+	body, err := getPasswords()
+	if err != nil {
+		return err
+	}
+	for i, data := range body {
+		fmt.Printf("%d. %s \n", i+1, data.Application)
+
+	}
+
+	return nil
+}
+
+func DeletePasswordCommand(args []string, m structs.MenuSwitcher) error {
+	// get all options
+	body, err := getPasswords()
+	if err != nil {
+		return err
+	}
+	for i, data := range body {
+		fmt.Printf("%d. %s \n", i+1, data.Application)
+
+	}
+
+	// get the application name
+	input, err := getInput([]string{"application number"})
+	if err != nil {
+		return err
+	}
+
+	// string to int
+	selection, err := strconv.Atoi(input[0])
+	if err != nil {
+		return fmt.Errorf("error convertin to int: %w", err)
+	}
+
+	// check if selection is out of range
+	if len(body) < selection {
+		return fmt.Errorf("option not available, %w", nil)
 	}
 
 	// make the request
-	res, err := client.Get("http://localhost:8080/api/passwords")
+	fullUrl := fmt.Sprintf("http://localhost:8080/api/passwords/%s", body[selection-1].ID)
+	fmt.Println(fullUrl)
+	req, err := http.NewRequest("DELETE", fullUrl, nil)
 	if err != nil {
-		return fmt.Errorf("error with request: %w", err)
+		return fmt.Errorf("error with req: %w", err)
 	}
 
-	// decode the password
-	decoder := json.NewDecoder(res.Body)
-	var body []passwordStruct
-	if err := decoder.Decode(&body); err != nil {
-		return fmt.Errorf("error decoding body: %w", err)
+	// do the req
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error with res: %w", err)
 	}
 
-	for i, data := range body {
-		fmt.Printf("%d. %s \n", i+1, data.ApplicationName)
-
+	// check the response
+	if res.StatusCode == 200 {
+		fmt.Println("Password successfully deleted")
+	} else {
+		fmt.Println("Password not deleted")
 	}
+
+	return nil
+}
+
+func updatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 
 	return nil
 }
@@ -239,4 +291,23 @@ func getInput(queries []string) ([]string, error) {
 		input[i] = strings.TrimSpace(value)
 	}
 	return input, nil
+}
+
+func getPasswords() ([]structs.Password, error) {
+
+	// make the request
+	res, err := client.Get("http://localhost:8080/api/passwords")
+	if err != nil {
+		return nil, fmt.Errorf("error with request: %w", err)
+	}
+
+	// decode the password
+	decoder := json.NewDecoder(res.Body)
+	var body []structs.Password
+
+	if err := decoder.Decode(&body); err != nil {
+		return nil, fmt.Errorf("error decoding body: %w", err)
+	}
+
+	return body, nil
 }
