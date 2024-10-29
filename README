@@ -1,0 +1,14 @@
+TODO 
+password generation tool 
+
+two step authentication using google auth or something similar 
+
+account page which shows history for security reasons 
+
+admin role 
+
+automatic logout and session expirary/ refresh token 
+
+automatic login of token is valid 
+
+
