@@ -1,10 +1,12 @@
 TODO 
-password generation tool 
+
+make endpoint whith secret information https 
+
+account page which shows history for security reasons 
 
 two step authentication using google auth or something similar 
 update password using email or google 2 step
 
-account page which shows history for security reasons 
 
 admin role 
 

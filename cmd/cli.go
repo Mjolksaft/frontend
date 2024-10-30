@@ -115,6 +115,11 @@ func MenuInit(m *MenuManager) { // make the help and back commands global comman
 					Description: "Delete by application",
 					Callback:    commands.DeletePasswordCommand,
 				},
+				"profile": {
+					Name:        "Profile",
+					Description: "Get user info",
+					Callback:    commands.GetUserInfo,
+				},
 			},
 		},
 	}

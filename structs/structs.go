@@ -36,3 +36,10 @@ type MenuSwitcher interface {
 	SwitchMenu(int)
 	GetCurrentMenu() Menu
 }
+
+type GetUserInfo struct {
+	ID           string    `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	Username     string    `json:"username"`
+	Applications []string  `json:"applications"`
+}

@@ -277,7 +277,35 @@ func DeletePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	return nil
 }
 
-func updatePasswordCommand(args []string, m structs.MenuSwitcher) error {
+func UpdatePasswordCommand(args []string, m structs.MenuSwitcher) error {
+
+	return nil
+}
+
+func GetUserInfo(args []string, m structs.MenuSwitcher) error {
+	fmt.Println("fetch user info")
+
+	// do the req
+	res, err := client.Get("http://localhost:8080/api/users")
+	if err != nil {
+		return fmt.Errorf("error fetching user info: %w", err)
+	}
+
+	// decode the body
+	decoder := json.NewDecoder(res.Body)
+	var data structs.GetUserInfo
+	if err := decoder.Decode(&data); err != nil {
+		return fmt.Errorf("error decoding body: %w", err)
+	}
+	fmt.Println("------------------------------------------------------------------------------------------------")
+	fmt.Printf("id: %s\n", data.ID)
+	fmt.Printf("username: %s\n", data.Username)
+	fmt.Printf("created_at: %s\n", data.CreatedAt)
+	fmt.Println("applications:")
+	for i, name := range data.Applications {
+		fmt.Printf("%d. %s\n", i+1, name)
+	}
+	fmt.Println("------------------------------------------------------------------------------------------------")
 
 	return nil
 }
