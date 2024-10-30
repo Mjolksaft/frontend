@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"math/rand"
 )
 
@@ -16,7 +15,7 @@ func GeneratePassword(length int, symbols, numbers bool) string {
 	if numbers {
 		charset += "0123456789"
 	}
-	fmt.Println(charset)
+
 	for i := range password {
 		randNum := rand.Intn(len(charset))
 		password[i] = charset[randNum]

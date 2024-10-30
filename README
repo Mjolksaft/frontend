@@ -1,17 +1,17 @@
 TODO 
 
-make endpoint whith secret information https 
+1. Create better responses on failed fetches 
 
-account page which shows history for security reasons 
+2. make endpoint whith secret information https 
 
-two step authentication using google auth or something similar 
+3. account page which shows history for security reasons 
+
+4. two step authentication using google auth or something similar 
 update password using email or google 2 step
 
 
-admin role 
+5. admin role 
 
-automatic logout and session expirary/ refresh token 
+6. automatic logout and session expirary/ refresh token 
 
-automatic login of token is valid 
-
-
+7. automatic login of token is valid 

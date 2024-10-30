@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"frontend/internal/encryption"
@@ -37,8 +38,6 @@ func ExitCommand(arguments []string, m structs.MenuSwitcher) error {
 }
 
 func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
-	// check cookies if user is already logged in
-
 	// get input
 	input, err := getInput([]string{"username", "password"})
 	if err != nil {
@@ -50,7 +49,7 @@ func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
 	ioReader := strings.NewReader(jsonString)
 
 	// Define the login URL
-	loginURL := "http://localhost:8080/api/login"
+	loginURL := "https://localhost:8080/api/login"
 
 	// Create the HTTP request
 	req, err := http.NewRequest("POST", loginURL, ioReader)
@@ -64,9 +63,20 @@ func LoginCommand(arguments []string, m structs.MenuSwitcher) error {
 		return fmt.Errorf("error creating cookie jar: %w", err)
 	}
 
+	// Create a custom HTTP client with TLS configuration
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true, // change to false when finished with project
+	}
+
+	// Create a custom Transport with the TLS config
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
 	// Create an HTTP client with the cookie jar
 	client = &http.Client{
-		Jar: jar,
+		Transport: transport,
+		Jar:       jar,
 	}
 
 	// Make the request
@@ -133,8 +143,7 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 		password = util.GeneratePassword(15, true, true)
 	}
 
-	fmt.Println(password)
-
+	fmt.Printf("New password: %s\n", password)
 	// wait of screen change to get the application you want
 	windowTitle := util.MonitorWindowChange()
 	encodedAppName := url.QueryEscape(strings.Split(windowTitle, " - ")[0])
@@ -150,7 +159,7 @@ func CreatePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	reader := strings.NewReader(jsonString)
 
 	// create the request
-	res, err := client.Post("http://localhost:8080/api/passwords", "text/plain", reader)
+	res, err := client.Post("https://localhost:8080/api/passwords", "text/plain", reader)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}
@@ -181,11 +190,16 @@ func GetPasswordByApplicationCommand(args []string, m structs.MenuSwitcher) erro
 	encodedAppName := url.QueryEscape(strings.Split(windowTitle, " - ")[0])
 
 	// make the request
-	fullUrl := fmt.Sprintf("http://localhost:8080/api/passwords?application_name=%s", encodedAppName)
-	fmt.Println(fullUrl)
+	fullUrl := fmt.Sprintf("https://localhost:8080/api/passwords?application_name=%s", encodedAppName)
 	res, err := client.Get(fullUrl)
 	if err != nil {
 		return fmt.Errorf("error with request: %w", err)
+	}
+
+	// check result
+	if res.StatusCode != 200 {
+		return fmt.Errorf("login failed with status code: %d", res.StatusCode)
+
 	}
 
 	// decode the password
@@ -231,6 +245,7 @@ func DeletePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	if err != nil {
 		return err
 	}
+
 	for i, data := range body {
 		fmt.Printf("%d. %s \n", i+1, data.Application)
 
@@ -254,7 +269,7 @@ func DeletePasswordCommand(args []string, m structs.MenuSwitcher) error {
 	}
 
 	// make the request
-	fullUrl := fmt.Sprintf("http://localhost:8080/api/passwords/%s", body[selection-1].ID)
+	fullUrl := fmt.Sprintf("https://localhost:8080/api/passwords/%s", body[selection-1].ID)
 	fmt.Println(fullUrl)
 	req, err := http.NewRequest("DELETE", fullUrl, nil)
 	if err != nil {
@@ -286,9 +301,14 @@ func GetUserInfo(args []string, m structs.MenuSwitcher) error {
 	fmt.Println("fetch user info")
 
 	// do the req
-	res, err := client.Get("http://localhost:8080/api/users")
+	res, err := client.Get("https://localhost:8080/api/users")
 	if err != nil {
 		return fmt.Errorf("error fetching user info: %w", err)
+	}
+
+	// check result
+	if res.StatusCode != 200 {
+		return fmt.Errorf("login failed with status code: %d", res.StatusCode)
 	}
 
 	// decode the body
@@ -330,9 +350,14 @@ func getInput(queries []string) ([]string, error) {
 func getPasswords() ([]structs.Password, error) {
 
 	// make the request
-	res, err := client.Get("http://localhost:8080/api/passwords")
+	res, err := client.Get("https://localhost:8080/api/passwords")
 	if err != nil {
 		return nil, fmt.Errorf("error with request: %w", err)
+	}
+
+	// check result
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("login failed with status code: %d", res.StatusCode)
 	}
 
 	// decode the password

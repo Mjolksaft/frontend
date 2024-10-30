@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"syscall"
 	"time"
 	"unsafe"
@@ -28,6 +29,8 @@ func getWindowText(hwnd syscall.Handle) string {
 
 // Monitor for window changes
 func MonitorWindowChange() string {
+	fmt.Println("Waiting for window switch")
+
 	// Get the current foreground window
 	currentWindow := getForegroundWindow()
 
